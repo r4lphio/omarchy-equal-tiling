@@ -47,7 +47,7 @@ the plugin.
 To check setup before enabling, add the plugin without `--enable`, then run:
 
 ```bash
-omarchy plugin add https://github.com/ralphsmith80/omarchy-equal-tiling --yes
+omarchy plugin add https://github.com/r4lphio/omarchy-equal-tiling --yes
 python3 ~/.config/omarchy/plugins/ralphsmith80.equal-tiling/install.py --check
 omarchy plugin enable ralphsmith80.equal-tiling
 ```
@@ -69,7 +69,7 @@ existing hy3 instance alone.
 ## Install
 
 ```bash
-omarchy plugin add https://github.com/ralphsmith80/omarchy-equal-tiling --enable --yes
+omarchy plugin add https://github.com/r4lphio/omarchy-equal-tiling --enable --yes
 ```
 
 The first enable builds hy3 in the background. Once ready, the service loads it
@@ -165,7 +165,7 @@ The older standalone install remains available for users who do not want the
 Omarchy service. Use only one installation method.
 
 ```bash
-git clone https://github.com/ralphsmith80/omarchy-equal-tiling.git
+git clone https://github.com/r4lphio/omarchy-equal-tiling.git
 cd omarchy-equal-tiling
 python3 install.py --build
 python3 install.py          # Preview changes
