@@ -166,6 +166,15 @@ require("default.hypr.toggles")
                     time.sleep(2)
                     wait_for(loaded)
                 print('PASS: rapid disable/re-enable keeps the layout active',flush=True)
+                worker=str(home/'.config/omarchy/plugins'/PLUGIN_ID/'service.py')
+                log=home/'.local/state/omarchy-equal-tiling/service.log'
+                # Match the worker the way a stray `pkill -f "python3 -"` does.
+                subprocess.run(['pkill','-TERM','-f','python3 -E -S -B '+worker],check=True)
+                wait_for(lambda:'Ignored SIGTERM' in log.read_text())
+                time.sleep(2)
+                assert loaded()
+                assert subprocess.run(['pgrep','-f',worker],capture_output=True).returncode==0
+                print('PASS: a stray SIGTERM leaves the service and layout active',flush=True)
                 omarchy('disable',PLUGIN_ID)
                 wait_for(lambda:not loaded())
                 ctl('plugin','load',str(cached/'libhy3-cosmic.so'))

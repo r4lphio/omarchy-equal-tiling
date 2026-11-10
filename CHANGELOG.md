@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Keep the service running when it receives SIGTERM. A broad `pkill` used to
+  stop it, which unloaded hy3 and returned Omarchy's default Super+L. That
+  binding could then save the wrong layout for a workspace.
 - Add `install.py --check` and automatic checks before fresh builds, with
   missing tools and development libraries listed by their Arch package names.
 - Document the dependency setup command and add an equal-tiling preview.

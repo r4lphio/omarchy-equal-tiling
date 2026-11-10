@@ -224,7 +224,12 @@ def main():
     def stop(_signal, _frame):
         global STOP
         STOP = True
-    signal.signal(signal.SIGTERM, stop)
+    def keep_running(_signal, _frame):
+        # Broad commands such as `pkill -f python3` send SIGTERM. Disabling the
+        # plugin is the supported stop, so a stray signal must not end tiling.
+        # A handler, unlike SIG_IGN, is not inherited by build and IPC processes.
+        os.write(1, b"Ignored SIGTERM. Disable the plugin to stop equal tiling.\n")
+    signal.signal(signal.SIGTERM, keep_running)
     signal.signal(signal.SIGINT, stop)
     try:
         restart = run()
