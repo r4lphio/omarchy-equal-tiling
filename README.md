@@ -126,7 +126,12 @@ omarchy plugin remove ralphsmith80.equal-tiling --yes
 Update applies the new service code. Disable and removal unload the native
 plugin and reload your saved Hyprland configuration. Cleanup can take a few
 seconds. They also stop an unfinished build. Restarting the Omarchy shell keeps
-the service active; ending the Hyprland session stops it.
+the service active; ending the Hyprland session stops it. The service ignores
+SIGTERM, so a broad command such as `pkill -f python3` does not turn equal tiling
+off. It writes a line to the service log instead, and restarts a build that the
+signal stopped. To stop the service from a terminal, send SIGINT. It then unloads
+hy3 like a disable. SIGKILL skips that cleanup and leaves hy3 loaded until you
+log out.
 
 After updating Hyprland, log out and back in. The service rebuilds against the
 installed headers when needed. It refuses to load a build that does not match
