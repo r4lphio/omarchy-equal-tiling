@@ -10,6 +10,7 @@ import select
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 
@@ -87,6 +88,40 @@ class ServiceLifecycleTest(unittest.TestCase):
             service.main()
             self.assertEqual(len(restarts), 1)
             self.assertEqual(len(reloads), 2)
+
+    def test_build_stopped_by_stray_sigterm_runs_again(self):
+        # The first run starts a compiler stand-in, then dies like a pkill victim.
+        script = """
+import os, signal, subprocess, sys
+from pathlib import Path
+marker = Path(sys.argv[1])
+if marker.exists():
+    sys.exit(0)
+marker.write_text(str(subprocess.Popen(["sleep", "60"]).pid))
+os.kill(os.getpid(), signal.SIGTERM)
+"""
+        with tempfile.TemporaryDirectory() as temporary:
+            marker = Path(temporary) / "first-run"
+            worker = [sys.executable, "-c", script, str(marker)]
+            # The service appends --build; sys.argv[1] stays the marker path.
+            with patch.object(service, "WORKER", worker), \
+                    patch.object(service, "STOP", False), \
+                    patch.object(service, "enabled", return_value=True), \
+                    redirect_stdout(io.StringIO()) as output:
+                self.assertTrue(service.build_while_enabled())
+            self.assertIn("Building again", output.getvalue())
+            compiler = int(marker.read_text())
+            # The orphaned compiler stand-in must not keep running. Its new
+            # parent reaps it shortly after the signal.
+            deadline = time.monotonic() + 5
+            while time.monotonic() < deadline:
+                try:
+                    os.kill(compiler, 0)
+                except ProcessLookupError:
+                    break
+                time.sleep(.05)
+            else:
+                self.fail("The compiler stand-in survived the stopped build")
 
     def test_sigterm_releases_native_build_lock(self):
         script = """

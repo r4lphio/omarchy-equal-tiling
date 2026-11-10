@@ -73,25 +73,40 @@ def notify(message):
         pass
 
 
+def stop_group(process):
+    """Stop a build and the compiler processes it started."""
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        os.killpg(process.pid, signal.SIGKILL)
+        process.wait()
+
+
 def build_while_enabled():
     """Keep compiler work outside the watched checkout; stop it on disable."""
-    process = subprocess.Popen([*WORKER, "--build"], start_new_session=True)
-    try:
-        while process.poll() is None:
-            if STOP or not enabled():
-                return False
-            time.sleep(.2)
-        if process.returncode:
-            raise RuntimeError("The native build failed. Check the service log and build requirements, then disable and enable the plugin to retry.")
-        return True
-    finally:
-        if process.poll() is None:
-            os.killpg(process.pid, signal.SIGTERM)
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                os.killpg(process.pid, signal.SIGKILL)
-                process.wait()
+    while True:
+        process = subprocess.Popen([*WORKER, "--build"], start_new_session=True)
+        try:
+            while process.poll() is None:
+                if STOP or not enabled():
+                    return False
+                time.sleep(.2)
+            if process.returncode == -signal.SIGTERM:
+                # The build stops on SIGTERM so disable can end it. Any other
+                # SIGTERM came from a broad pkill, so build again.
+                print("The build received SIGTERM while enabled. Building again.", flush=True)
+                continue
+            if process.returncode:
+                raise RuntimeError("The native build failed. Check the service log and build requirements, then disable and enable the plugin to retry.")
+            return True
+        finally:
+            # A killed build can leave compiler processes in its group.
+            if process.poll() is None or process.returncode < 0:
+                stop_group(process)
 
 
 def loaded_hy3():
@@ -228,7 +243,7 @@ def main():
         # Broad commands such as `pkill -f python3` send SIGTERM. Disabling the
         # plugin is the supported stop, so a stray signal must not end tiling.
         # A handler, unlike SIG_IGN, is not inherited by build and IPC processes.
-        os.write(1, b"Ignored SIGTERM. Disable the plugin to stop equal tiling.\n")
+        os.write(1, b"Ignored SIGTERM. Disable the plugin, or send SIGINT, to stop equal tiling.\n")
     signal.signal(signal.SIGTERM, keep_running)
     signal.signal(signal.SIGINT, stop)
     try:

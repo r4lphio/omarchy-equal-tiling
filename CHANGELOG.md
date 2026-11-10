@@ -4,7 +4,8 @@
 
 - Keep the service running when it receives SIGTERM. A broad `pkill` used to
   stop it, which unloaded hy3 and returned Omarchy's default Super+L. That
-  binding could then save the wrong layout for a workspace.
+  binding could then save the wrong layout for a workspace. A build that the
+  signal stops runs again, and its leftover compiler processes stop.
 - Add `install.py --check` and automatic checks before fresh builds, with
   missing tools and development libraries listed by their Arch package names.
 - Document the dependency setup command and add an equal-tiling preview.
