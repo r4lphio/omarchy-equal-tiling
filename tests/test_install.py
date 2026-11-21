@@ -179,7 +179,7 @@ class RestoreTest(unittest.TestCase):
 
     def test_builds_from_the_inherited_environment_policy_are_not_reused(self):
         with patch.object(omarchy, "BUILD", self.home):
-            with patch.object(Path, "read_bytes", return_value=b"test build inputs"):
+            with patch.object(Path, "read_bytes", return_value=b'#define GIT_TAG "v0.56.2"\n'):
                 signature = omarchy.build_signature()
             legacy = {name: value for name, value in signature.items() if name != "build_policy"}
             for name in omarchy.OUTPUTS:

@@ -42,7 +42,8 @@ def enabled():
 
 def source_revision():
     digest = hashlib.sha256()
-    for name in ("manifest.json", "Service.qml", "service.py", "install.py", "hy3.patch", "config/hypr/equal-tiling.lua"):
+    for name in ("manifest.json", "Service.qml", "service.py", "install.py", "hy3.patch", "hy3-0.57.patch",
+                 "config/hypr/equal-tiling.lua"):
         digest.update((ROOT / name).read_bytes())
     return digest.hexdigest()
 

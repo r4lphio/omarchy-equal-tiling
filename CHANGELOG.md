@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Build on Hyprland 0.57. The builder selects the hy3 source and patch for the
+  installed Hyprland release, 0.56.x or 0.57.x, and builds again after an
+  upgrade. Other releases stop before any download, with a message that names
+  the supported versions. Hyprland 0.57.2 builds, but it has not yet run in a
+  live session.
 - Keep the service running when it receives SIGTERM. A broad `pkill` used to
   stop it, which unloaded hy3 and returned Omarchy's default Super+L. That
   binding could then save the wrong layout for a workspace. A build that the

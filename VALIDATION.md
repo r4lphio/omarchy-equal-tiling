@@ -1,5 +1,32 @@
 # Validation
 
+## Hyprland 0.57 build
+
+Validated on 2026-11-21 with Hyprland 0.56.2 and Hyprland 0.57.2, on two machines.
+
+- On Hyprland 0.56.2, `python3 install.py --build` selected hy3 commit
+  `42b7ed8f` and `hy3.patch`, and the build passed. The build signature is the
+  same as before this change, so cached builds stay valid.
+- On Hyprland 0.57.2, the same command selected hy3 commit `4c0199b4` and
+  `hy3-0.57.patch`. All 8 build steps passed. The build stamp holds the 0.57.2
+  commit.
+- Compared the symbols that each library needs with the symbols that the
+  installed Hyprland and its libraries export. No symbol was missing on either
+  version.
+- All 31 automated tests passed on both machines. Four new tests cover source
+  selection, the message for an unsupported release, the signature change after
+  an upgrade, and stopping before download.
+- Compared the Hyprland 0.56.2 and 0.57.2 sources for the calls that the patch
+  adds: `hasFullscreen`, `tiledTargets`, `workArea`, the single-window aspect
+  options, and the callers of `swapTargets`. The signatures and callers are the
+  same. The port changes only the workspace type name in two lines.
+
+Not validated: the 0.57.2 library was not loaded into a compositor. Movement,
+sizing, native window groups, and the Lua bindings are not confirmed on 0.57.
+One known difference needs a check there. Hyprland 0.57 gives `workspace.id`
+as nil for special and named workspaces. `config/hypr/equal-tiling.lua` reads
+that field for Super+L and Super+Alt+P.
+
 ## Animated preview
 
 Validated on 2026-10-01 with Hyprland 0.56.2.

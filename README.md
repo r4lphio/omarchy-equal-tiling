@@ -22,8 +22,10 @@ For example, with `A | D | (B / C)`, focus D and press Right twice. The result i
 ## Requirements
 
 Tested with Hyprland **0.56.2** and Omarchy's Lua configuration and Quickshell
-plugin system. Older `.conf` setups are unsupported. Other Hyprland releases
-need a compatible hy3 revision and a fresh build. Keep Omarchy's standard
+plugin system. Hyprland **0.57.2** builds, but it has not yet run in a live
+session. The builder selects the hy3 source for the installed Hyprland release,
+0.56.x or 0.57.x. Other releases stop with a message that names the supported
+versions. Older `.conf` setups are unsupported. Keep Omarchy's standard
 `~/.config` location.
 
 The build needs Python 3.9+, curl 8.4.0+, tar, patch, CMake, Ninja, pkg-config, a C++23
@@ -54,9 +56,10 @@ omarchy plugin enable ralphsmith80.equal-tiling
 
 From a checkout, use `python3 install.py --check`. It checks the system tools,
 curl version, C++23 language support, Hyprland headers, and development libraries.
-Missing requirements include their Arch package names. The check makes no network
-requests and does not install packages or change your desktop. A passing check
-does not guarantee that the pinned native source supports another Hyprland version.
+Missing requirements include their Arch package names. It also reports a Hyprland
+release that has no pinned hy3 source. The check makes no network requests and
+does not install packages or change your desktop. A passing check does not
+compile the native source.
 Fresh builds run the same check before downloading source. A valid cached build
 does not require the build tools again.
 
@@ -134,8 +137,9 @@ hy3 like a disable. SIGKILL skips that cleanup and leaves hy3 loaded until you
 log out.
 
 After updating Hyprland, log out and back in. The service rebuilds against the
-installed headers when needed. It refuses to load a build that does not match
-the running compositor.
+installed headers when needed. An update from 0.56 to 0.57 also selects the hy3
+source for the new release. The service refuses to load a build that does not
+match the running compositor.
 
 Builds remain under `${XDG_CACHE_HOME:-$HOME/.cache}/omarchy-equal-tiling` for reuse.
 Removal keeps that cache, the service log, and your saved workspace choices. You
@@ -214,13 +218,21 @@ All text is public repository content; it does not capture the active desktop.
 `preview.png` is a still from the same recording, because the plugin marketplace
 accepts only static previews.
 
-`hy3.patch` applies to upstream commit
-`42b7ed8fd9aefd3f36e5f617afd5071245c67853`. The expected archive SHA-256 is
-`b4b8842cdfb0562f1f4228ef35c746f040379a33ee0912ad089f693206c34076`.
-The patch adds `hl.plugin.hy3.move_cosmic(direction)`, honors Hyprland's single-window
+`HY3_SOURCES` in `install.py` pins one upstream hy3 commit for each Hyprland
+release series. The builder reads the series from Hyprland's `version.h`.
+
+| Hyprland | Patch | hy3 commit | Archive SHA-256 |
+| --- | --- | --- | --- |
+| 0.56.x | `hy3.patch` | `42b7ed8fd9aefd3f36e5f617afd5071245c67853` | `b4b8842cdfb0562f1f4228ef35c746f040379a33ee0912ad089f693206c34076` |
+| 0.57.x | `hy3-0.57.patch` | `4c0199b42967b3511e3520b75cfa1f6411fb7e87` | `ab84e5cab4cd437a95a2a121390ba0609969ded02c815dc34e33d2d07f89dc63` |
+
+The two patches make the same changes. They differ only in the name of the
+workspace type, which Hyprland 0.57 changed. Keep them in sync. Each patch adds
+`hl.plugin.hy3.move_cosmic(direction)`, honors Hyprland's single-window
 aspect settings, and implements target swapping for native window groups.
-It leaves upstream movement and focus dispatchers intact. Update the source pin and checksum together, then
-build and run the checks before publishing a release.
+It leaves upstream movement and focus dispatchers intact. Update a commit, its
+checksum, and its patch together, then build and run the checks before
+publishing a release.
 
 ## License and credit
 

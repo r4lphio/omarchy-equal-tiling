@@ -81,5 +81,46 @@ class PrerequisiteTest(unittest.TestCase):
             self.assertFalse((Path(temporary) / "signature.json").exists())
 
 
+class SourceSelectionTest(unittest.TestCase):
+    @staticmethod
+    def header(tag):
+        return f'#pragma once\n#define GIT_BRANCH "{tag}"\n#define GIT_TAG            "{tag}"\n'
+
+    def test_each_supported_series_selects_its_own_revision_and_patch(self):
+        selected = {tag: installer.hy3_source(self.header(tag))
+                    for tag in ("v0.56.0", "v0.56.2", "v0.57.2")}
+        self.assertIs(selected["v0.56.0"], selected["v0.56.2"])
+        self.assertEqual(selected["v0.56.2"]["patch"], "hy3.patch")
+        self.assertEqual(selected["v0.57.2"]["patch"], "hy3-0.57.patch")
+        self.assertNotEqual(selected["v0.56.2"]["commit"], selected["v0.57.2"]["commit"])
+        for source in installer.HY3_SOURCES.values():
+            self.assertTrue((ROOT / source["patch"]).is_file())
+
+    def test_unknown_versions_name_the_supported_ones(self):
+        for header, found in ((self.header("v0.58.0"), "Hyprland 0.58.0"),
+                              (self.header("v0.5.6"), "Hyprland 0.5.6"),
+                              ("#pragma once\n", "This Hyprland version")):
+            with self.subTest(found=found), self.assertRaises(ValueError) as failure:
+                installer.hy3_source(header)
+            self.assertEqual(str(failure.exception),
+                             f"{found} is not supported. Supported versions: 0.56.x, 0.57.x.")
+
+    def test_hyprland_upgrade_changes_the_build_signature(self):
+        signatures = []
+        for tag in ("v0.56.2", "v0.57.2"):
+            with patch.object(Path, "read_bytes", return_value=self.header(tag).encode()):
+                signatures.append(installer.build_signature())
+        self.assertNotEqual(signatures[0]["upstream"], signatures[1]["upstream"])
+
+    def test_unsupported_hyprland_stops_the_build_before_downloading(self):
+        with tempfile.TemporaryDirectory() as temporary, \
+                patch.object(installer, "BUILD", Path(temporary)), \
+                patch.object(Path, "read_bytes", return_value=self.header("v0.58.0").encode()), \
+                patch.object(installer, "download_archive") as download:
+            with self.assertRaisesRegex(ValueError, "Supported versions: 0.56.x, 0.57.x"):
+                installer.build_hy3()
+            download.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
