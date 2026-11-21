@@ -25,12 +25,16 @@ def run():
         original = '''dofile("/usr/share/omarchy/default/hypr/bootstrap.lua")
 hl.monitor({output = "", mode = "preferred", position = "0x0", scale = 1})
 hl.config({general = {gaps_in = 5, gaps_out = 10}, input = {follow_mouse = 0}, animations = {enabled = false}, misc = {disable_hyprland_logo = true, disable_splash_rendering = true}})
+-- Load Omarchy's own `o` helpers, in the order default.hypr.omarchy does.
+-- The default bindings read them. Only record what each key is bound to.
+require("default.hypr.helpers")
+require("default.hypr.monitor-workspaces")
 test_bindings = {}
-o = {bind = function(key, description, action, opts)
-  if type(action) == "string" then action = hl.dsp.exec_cmd(action) end
-  test_bindings[key] = action
-  hl.bind(key, action, opts or {})
-end}
+local bind = o.bind
+o.bind = function(key, description, action, options)
+  test_bindings[key] = type(action) == "string" and hl.dsp.exec_cmd(action) or action
+  bind(key, description, action, options)
+end
 require("default.hypr.bindings.tiling")
 '''
         config.write_text(original)
@@ -183,6 +187,30 @@ require("default.hypr.bindings.tiling")
                     total = sum(width(label) for label in row)
                     assert all(abs(width(label) - total / 4) <= 4 for label in (row[0], row[2])), windows()
                 print('PASS: rows of three each get the priority split', flush=True)
+                # Hyprland 0.57 gives special and named workspaces no numbered id.
+                ev('hl.dispatch(hl.dsp.workspace.toggle_special("eq"))')
+                special = ['S1', 'S2', 'S3']
+                for label in special:
+                    open_window(label)
+                ev('hl.dispatch(hl.plugin.hy3.change_group("h"))')
+                focus('S2')
+                ev('test_bindings["SUPER + ALT + P"]()')
+                total = sum(width(label) for label in special)
+                assert all(abs(width(label) - total / 4) <= 4 for label in ('S1', 'S3')), windows()
+                for label in special:
+                    focus(label)
+                    ev('hl.dispatch(hl.dsp.window.kill())')
+                deadline = time.monotonic() + 5
+                while set(special) & set(windows()):
+                    assert time.monotonic() < deadline, windows()
+                    time.sleep(.1)
+                ev('if hl.get_active_special_workspace() then hl.dispatch(hl.dsp.workspace.toggle_special("eq")) end')
+                ev('hl.dispatch(hl.dsp.focus({workspace="name:eq"}))')
+                ev('test_bindings["SUPER + L"]()')
+                ev('assert(hl.get_active_workspace().tiled_layout == "hy3")')
+                assert not list((state_home / 'omarchy/workspace-layouts').glob('*.lua'))
+                ev('hl.dispatch(hl.dsp.focus({workspace="3"}))')
+                print('PASS: priority column on a special workspace, and no saved layout for a named one', flush=True)
                 ev('test_bindings["SUPER + L"]()')
                 legacy = home / '.local/state/omarchy/workspace-layouts/2.lua'
                 legacy.parent.mkdir(parents=True)

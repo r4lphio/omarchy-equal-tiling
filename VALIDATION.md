@@ -1,8 +1,9 @@
 # Validation
 
-## Hyprland 0.57 build
+## Hyprland 0.57
 
-Validated on 2026-11-21 with Hyprland 0.56.2 and Hyprland 0.57.2, on two machines.
+Validated on 2026-11-21 on two machines: Hyprland 0.56.2 with Omarchy 4.5.0,
+and Hyprland 0.57.2 with an Omarchy edge build.
 
 - On Hyprland 0.56.2, `python3 install.py --build` selected hy3 commit
   `42b7ed8f` and `hy3.patch`, and the build passed. The build signature is the
@@ -20,12 +21,29 @@ Validated on 2026-11-21 with Hyprland 0.56.2 and Hyprland 0.57.2, on two machine
   adds: `hasFullscreen`, `tiledTargets`, `workArea`, the single-window aspect
   options, and the callers of `swapTargets`. The signatures and callers are the
   same. The port changes only the workspace type name in two lines.
+- Ran `python3 tests/session.py` on both machines. It loads the built library
+  in a disposable nested compositor with a temporary home. All 14 checks passed
+  on Hyprland 0.56.2 and on 0.57.2: single-window ratios with fullscreen,
+  Super+J, native window groups, directional movement, 40 random moves, the
+  priority column, saved layouts, reload, a mismatched build, and installer
+  rollback. No nested compositor stayed behind.
+- The session test did not start on current Omarchy. Omarchy's default tiling
+  bindings now read `o.workspaces`, and the test had its own copy of `o` with
+  `bind` only. The test now loads `default.hypr.helpers` and
+  `default.hypr.monitor-workspaces`, as Omarchy does, and records the bindings.
+  The single-window check sets zero tolerance, so it no longer depends on the
+  shape of the nested window.
+- Added a check for workspaces with no numbered id. Before the fix, Super+Alt+P
+  on a special workspace with three columns failed on Hyprland 0.57.2: the
+  columns stayed equal. On Hyprland 0.56.2, Super+L on a named workspace saved
+  a layout file for it. Both pass after the fix on both versions.
 
-Not validated: the 0.57.2 library was not loaded into a compositor. Movement,
-sizing, native window groups, and the Lua bindings are not confirmed on 0.57.
-One known difference needs a check there. Hyprland 0.57 gives `workspace.id`
-as nil for special and named workspaces. `config/hypr/equal-tiling.lua` reads
-that field for Super+L and Super+Alt+P.
+Not validated on Hyprland 0.57.2: the Omarchy service. `tests/plugin_session.py`
+was not run. It starts a second Omarchy shell and runs the real plugin
+commands, so it is less isolated than the session test. It also has the old
+copy of `o` and needs the same change. No library was loaded into a live
+desktop on either machine. Multiple monitors and a full Omarchy configuration
+are not covered by the nested test.
 
 ## Animated preview
 

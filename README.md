@@ -22,11 +22,12 @@ For example, with `A | D | (B / C)`, focus D and press Right twice. The result i
 ## Requirements
 
 Tested with Hyprland **0.56.2** and Omarchy's Lua configuration and Quickshell
-plugin system. Hyprland **0.57.2** builds, but it has not yet run in a live
-session. The builder selects the hy3 source for the installed Hyprland release,
-0.56.x or 0.57.x. Other releases stop with a message that names the supported
-versions. Older `.conf` setups are unsupported. Keep Omarchy's standard
-`~/.config` location.
+plugin system. On Hyprland **0.57.2**, the layout tests pass in a disposable
+nested compositor. The Omarchy service has not yet run on 0.57.2, in a test or
+on a live desktop. The builder selects the hy3 source for the installed Hyprland
+release, 0.56.x or 0.57.x. Other releases stop with a message that names the
+supported versions. Older `.conf` setups are unsupported. Keep Omarchy's
+standard `~/.config` location.
 
 The build needs Python 3.9+, curl 8.4.0+, tar, patch, CMake, Ninja, pkg-config, a C++23
 compiler, and development files for Hyprland, pixman, libdrm, Pango, libinput,
@@ -115,7 +116,8 @@ width of one 4K display. Press Super+Alt+P again to make all tiles equal. In
 any other layout, the shortcut makes all tiles on the workspace equal.
 
 Super+L saves the workspace's layout choice in Omarchy's workspace state. Saved
-hy3 choices fall back to dwindle while hy3 is unavailable.
+hy3 choices fall back to dwindle while hy3 is unavailable. Like Omarchy's own
+layout toggle, Super+L does nothing on a named workspace.
 
 ## Updates and removal
 

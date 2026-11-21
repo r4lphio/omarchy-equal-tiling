@@ -41,7 +41,9 @@ end
 -- skew the result. The Lua API does not expose pseudotile state.
 local function priority_columns(active)
   local columns, by_span = {}, {}
-  for _, window in ipairs(hl.get_windows({workspace = active.workspace.id, floating = false})) do
+  -- Filter by the workspace object. Special and named workspaces have no id
+  -- on Hyprland 0.57.
+  for _, window in ipairs(hl.get_windows({workspace = active.workspace, floating = false})) do
     local span = window.at.x .. ":" .. window.size.x
     if not by_span[span] then
       by_span[span] = {x = window.at.x, width = window.size.x, windows = {}}
@@ -121,7 +123,9 @@ end)
 hl.unbind("SUPER + L")
 o.bind("SUPER + L", "Toggle equal tiling / scrolling", function()
   local workspace = hl.get_active_workspace()
-  if not workspace then return end
+  -- Like Omarchy's own toggle, only numbered workspaces save a layout. A named
+  -- workspace has a negative id on Hyprland 0.56 and no id on 0.57.
+  if not workspace or not workspace.id or workspace.id < 1 then return end
   local layout = workspace.tiled_layout == "hy3" and "scrolling" or "hy3"
   local directory = state_home .. "/omarchy/workspace-layouts"
   -- A fresh home has no saved layouts yet. Quote the directory for the shell.
