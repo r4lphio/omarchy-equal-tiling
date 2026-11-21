@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 import time
 from window_controls import check_controls
+from workspace_modes import Modes, check_late_load, check_modes, check_stock_modes
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -36,12 +37,23 @@ o.bind = function(key, description, action, options)
   bind(key, description, action, options)
 end
 require("default.hypr.bindings.tiling")
+-- The installer puts its loader before this line. Saved layouts load after it.
+require("default.hypr.toggles")
 '''
         config.write_text(original)
+        # Omarchy's layout commands notify and refresh the shell. Keep both inside
+        # this test, and record the notification text.
+        stubs, notifications = root / 'bin', root / 'notifications'
+        stubs.mkdir()
+        for name, script in (('omarchy-notification-send', 'printf \'%s\\n\' "${@: -1}" >> "$EQUAL_TILING_NOTIFICATIONS"; echo 1'),
+                             ('omarchy-shell', 'exit 0')):
+            (stubs / name).write_text('#!/bin/bash\n' + script + '\n')
+            (stubs / name).chmod(0o755)
         env = dict(os.environ, HOME=str(home), XDG_CONFIG_HOME=str(home / '.config'),
                    XDG_STATE_HOME=str(state_home), XDG_CACHE_HOME=str(home / '.cache'),
                    XDG_RUNTIME_DIR=str(runtime), WAYLAND_DISPLAY=str(parent_display),
-                   AQ_DRM_DEVICES='/dev/null')
+                   AQ_DRM_DEVICES='/dev/null', PATH=f'{stubs}:{os.environ["PATH"]}',
+                   EQUAL_TILING_NOTIFICATIONS=str(notifications))
         env.pop('HYPRLAND_INSTANCE_SIGNATURE', None)
         env.pop('DISPLAY', None)
         def install(*args):
@@ -205,30 +217,39 @@ require("default.hypr.bindings.tiling")
                     assert time.monotonic() < deadline, windows()
                     time.sleep(.1)
                 ev('if hl.get_active_special_workspace() then hl.dispatch(hl.dsp.workspace.toggle_special("eq")) end')
-                ev('hl.dispatch(hl.dsp.focus({workspace="name:eq"}))')
-                ev('test_bindings["SUPER + L"]()')
-                ev('assert(hl.get_active_workspace().tiled_layout == "hy3")')
-                assert not list((state_home / 'omarchy/workspace-layouts').glob('*.lua'))
-                ev('hl.dispatch(hl.dsp.focus({workspace="3"}))')
-                print('PASS: priority column on a special workspace, and no saved layout for a named one', flush=True)
-                ev('test_bindings["SUPER + L"]()')
-                legacy = home / '.local/state/omarchy/workspace-layouts/2.lua'
-                legacy.parent.mkdir(parents=True)
-                legacy.write_text('hl.workspace_rule({workspace="2", layout="dwindle"})\n')
-                for _ in range(2):
-                    assert ctl('reload') == 'ok'
-                    time.sleep(.5)
-                    ev('require("default.hypr.workspace-layouts")')
-                    ev('assert(hl.get_active_workspace().tiled_layout == "scrolling")')
-                print('PASS: custom state directory wins over stale defaults across reloads', flush=True)
-                ev('test_bindings["SUPER + L"]()')
-                saved = list((state_home / 'omarchy/workspace-layouts').glob('*.lua'))
-                assert len(saved) == 1 and 'hl.plugin.hy3' in saved[0].read_text()
+                print('PASS: priority column on a special workspace', flush=True)
+                layouts = state_home / 'omarchy/workspace-layouts'
+                # Newer Omarchy releases cycle tiling, scrolling, and floating themselves.
+                has_modes = subprocess.run(['hyprctl', 'eval', 'assert(o.workspace_mode)'], env=env,
+                                           text=True, capture_output=True).stdout.strip() == 'ok'
+                modes = Modes(ctl, env, notifications)
+                if has_modes:
+                    check_modes(modes, ctl, ev, windows, focus, open_window, layouts)
+                else:
+                    ev('hl.dispatch(hl.dsp.focus({workspace="name:eq"}))')
+                    ev('test_bindings["SUPER + L"]()')
+                    ev('assert(hl.get_active_workspace().tiled_layout == "hy3")')
+                    assert not list(layouts.glob('*.lua'))
+                    ev('hl.dispatch(hl.dsp.focus({workspace="3"}))')
+                    print('PASS: no saved layout for a named workspace', flush=True)
+                    ev('test_bindings["SUPER + L"]()')
+                    legacy = home / '.local/state/omarchy/workspace-layouts/2.lua'
+                    legacy.parent.mkdir(parents=True)
+                    legacy.write_text('hl.workspace_rule({workspace="2", layout="dwindle"})\n')
+                    for _ in range(2):
+                        assert ctl('reload') == 'ok'
+                        time.sleep(.5)
+                        ev('require("default.hypr.workspace-layouts")')
+                        ev('assert(hl.get_active_workspace().tiled_layout == "scrolling")')
+                    print('PASS: custom state directory wins over stale defaults across reloads', flush=True)
+                    ev('test_bindings["SUPER + L"]()')
+                    saved = list(layouts.glob('*.lua'))
+                    assert len(saved) == 1 and 'hl.plugin.hy3' in saved[0].read_text()
                 assert ctl('reload') == 'ok'
                 time.sleep(.5)
                 assert not ctl('configerrors'), ctl('configerrors')
                 focus('A'); press('RIGHT')
-                print('PASS: floating, saved layout toggle, reload, and movement after reload', flush=True)
+                print('PASS: floating, reload, and movement after reload', flush=True)
                 stamp = home / '.local/lib/omarchy-equal-tiling/hyprland-commit'
                 commit = stamp.read_text()
                 stamp.write_text('0000000000000000000000000000000000000000\n')
@@ -240,6 +261,12 @@ require("default.hypr.bindings.tiling")
                 ev('hl.dispatch(hl.dsp.focus({workspace="2"}))')
                 ev('assert(hl.get_active_workspace().tiled_layout == "dwindle")')
                 stamp.write_text(commit)
+                if has_modes:
+                    check_stock_modes(modes, ev)
+                    print('PASS: without the plugin, Omarchy cycles its stock layouts', flush=True)
+                    check_late_load(modes, ctl, ev, stamp.with_name('libhy3-cosmic.so'), stamp,
+                                    home / '.config/hypr/equal-tiling.lua')
+                    print('PASS: a library loaded after the config gives saved modes equal tiling', flush=True)
                 assert ctl('reload') == 'ok'
                 time.sleep(.5)
                 assert not ctl('configerrors'), ctl('configerrors')

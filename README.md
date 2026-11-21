@@ -23,11 +23,11 @@ For example, with `A | D | (B / C)`, focus D and press Right twice. The result i
 
 Tested with Hyprland **0.56.2** and Omarchy's Lua configuration and Quickshell
 plugin system. On Hyprland **0.57.2**, the layout tests pass in a disposable
-nested compositor. The Omarchy service has not yet run on 0.57.2, in a test or
-on a live desktop. The builder selects the hy3 source for the installed Hyprland
-release, 0.56.x or 0.57.x. Other releases stop with a message that names the
-supported versions. Older `.conf` setups are unsupported. Keep Omarchy's
-standard `~/.config` location.
+nested compositor, and the plugin runs on one live desktop. The plugin
+lifecycle test has not yet run on 0.57.2. The builder selects the hy3 source
+for the installed Hyprland release, 0.56.x or 0.57.x. Other releases stop with
+a message that names the supported versions. Older `.conf` setups are
+unsupported. Keep Omarchy's standard `~/.config` location.
 
 The build needs Python 3.9+, curl 8.4.0+, tar, patch, CMake, Ninja, pkg-config, a C++23
 compiler, and development files for Hyprland, pixman, libdrm, Pango, libinput,
@@ -99,12 +99,13 @@ disable and enable the plugin to retry.
 | Super+arrows | Focus a window through hy3's layout tree |
 | Super+Shift+arrows | Move a window through tiling groups |
 | Super+Alt+P | Toggle the priority column, or make all tiles equal |
-| Super+L | Switch the workspace between equal tiling and scrolling |
+| Super+L | Omarchy's layout cycle, with equal tiling as its tiling layout |
 
-These replace Omarchy's directional focus, directional swap, and workspace
-layout shortcuts while enabled. Omarchy's Super+J split toggle, Super+G window
-grouping, and related tab shortcuts remain available. Super+Ctrl+Backspace
-centers a lone tile using Omarchy's single-window square setting. Custom
+The first three replace Omarchy's directional focus and directional swap
+shortcuts while enabled, and add the priority column. Omarchy's Super+J split
+toggle, Super+G window grouping, and related tab shortcuts remain available.
+Super+Ctrl+Backspace centers a lone tile using Omarchy's single-window square
+setting. Custom
 `layout.single_window_aspect_ratio` and tolerance values also apply.
 Movement does not move windows across monitors. This plugin
 does not reproduce COSMIC's tab behavior.
@@ -115,9 +116,26 @@ columns share the other half. On a 7680 px ultrawide, the middle column is the
 width of one 4K display. Press Super+Alt+P again to make all tiles equal. In
 any other layout, the shortcut makes all tiles on the workspace equal.
 
-Super+L saves the workspace's layout choice in Omarchy's workspace state. Saved
-hy3 choices fall back to dwindle while hy3 is unavailable. Like Omarchy's own
-layout toggle, Super+L does nothing on a named workspace.
+Super+L stays Omarchy's own layout cycle: tiling, scrolling, floating. So do
+Super+Alt+L, the display key, and the layout button in the bar. While the
+plugin is enabled, the tiling layout is equal tiling in place of dwindle.
+Omarchy's notifications, saved files, and bar keep their own names, so they
+call it tiling. A floating workspace floats the tiles, and the next press puts
+them back as equal tiles. On a floating window, the arrow shortcuts do what
+Omarchy does without the plugin. When you disable the plugin, the same saved
+layouts give Omarchy's dwindle again.
+
+Omarchy's layout commands read the default layout from a saved file. When that
+file does not exist and the default is tiling, the plugin saves that default in
+`~/.local/state/omarchy/workspace-layouts/default.lua`, in Omarchy's own
+format. Without the file, the first Super+L press on a workspace would do
+nothing. The file stays after you disable or remove the plugin, and then means
+Omarchy's dwindle. Another default that you chose under Appearance > Workspace
+Layout stays your default. Equal tiling is then the tiling step of the cycle.
+
+On an Omarchy release without these workspace modes, the plugin keeps its own
+Super+L. It switches the workspace between equal tiling and scrolling, saves
+the choice, and does nothing on a named workspace.
 
 ## Updates and removal
 

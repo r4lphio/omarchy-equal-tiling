@@ -50,11 +50,16 @@ def run():
 hl.monitor({output="", mode="preferred", position="0x0", scale=1})
 -- The test asserts an exact square regardless of the parent window's dimensions.
 hl.config({input={follow_mouse=0}, animations={enabled=false}, layout={single_window_aspect_ratio_tolerance=0}})
+-- Load Omarchy's own `o` helpers, in the order default.hypr.omarchy does.
+-- The default bindings read them. Only record what each key is bound to.
+require("default.hypr.helpers")
+require("default.hypr.monitor-workspaces")
 test_bindings = {}
-o = {bind=function(key, description, action, opts)
-  if type(action) == "string" then action = hl.dsp.exec_cmd(action) end
-  test_bindings[key]=action; hl.bind(key, action, opts or {})
-end}
+local bind = o.bind
+o.bind = function(key, description, action, options)
+  test_bindings[key] = type(action) == "string" and hl.dsp.exec_cmd(action) or action
+  bind(key, description, action, options)
+end
 require("default.hypr.bindings.tiling")
 require("default.hypr.toggles")
 '''

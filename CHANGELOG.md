@@ -2,11 +2,22 @@
 
 ## Unreleased
 
+- Work with Omarchy's workspace layout cycle. Super+L, Super+Alt+L, the display
+  key, and the bar button stay Omarchy's own cycle through tiling, scrolling,
+  and floating. The tiling step is equal tiling while the plugin is enabled.
+  Before, the plugin replaced Super+L with its own two-layout toggle, so
+  floating was out of reach, and Omarchy's other layout keys changed the
+  workspace to dwindle. An Omarchy release without workspace modes keeps the
+  plugin's Super+L toggle.
+- Save Omarchy's tiling default in `workspace-layouts/default.lua` when no
+  default is saved. Omarchy's commands and bar then report tiling, not `hy3`.
+- On a floating window, Super+Shift+arrows now swap windows, as Omarchy does
+  without the plugin. Before, they moved the window in that direction.
 - Build on Hyprland 0.57. The builder selects the hy3 source and patch for the
   installed Hyprland release, 0.56.x or 0.57.x, and builds again after an
   upgrade. Other releases stop before any download, with a message that names
   the supported versions. On Hyprland 0.57.2 the layout tests pass in a nested
-  compositor. The Omarchy service has not yet run there.
+  compositor. The plugin lifecycle test has not yet run there.
 - Fix Super+Alt+P on a special workspace with Hyprland 0.57. These workspaces
   have no numbered id there, so the shortcut counted the windows of all
   workspaces and never made a priority column.

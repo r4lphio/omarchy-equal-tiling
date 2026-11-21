@@ -251,8 +251,14 @@ hl.config({{general={{gaps_in=6, gaps_out=14, border_size=2, col={{
   misc={{disable_hyprland_logo=true, disable_splash_rendering=true, background_color="rgb({bytes(KEY).hex()})"}}}})
 -- Fading windows would blend with the key color.
 hl.animation({{leaf="fade", enabled=false}})
+-- Load Omarchy's own `o` helpers. Only record what each key is bound to.
+require("default.hypr.helpers")
 test_bindings = {{}}
-o = {{bind=function(key, description, action, opts) test_bindings[key]=action; hl.bind(key, action, opts or {{}}) end}}
+local bind = o.bind
+o.bind = function(key, description, action, options)
+  test_bindings[key] = action
+  bind(key, description, action, options)
+end
 ''')
         env = dict(os.environ, HOME=str(home), XDG_CONFIG_HOME=str(home / ".config"),
                    XDG_CACHE_HOME=str(home / ".cache"), XDG_STATE_HOME=str(home / ".local/state"),

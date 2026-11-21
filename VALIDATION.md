@@ -1,5 +1,44 @@
 # Validation
 
+## Omarchy workspace layout cycle
+
+Validated on 2026-11-21 on two machines: Hyprland 0.56.2 with Omarchy 4.5.0,
+and Hyprland 0.57.2 with an Omarchy edge build. Both Omarchy versions have the
+layout cycle with a floating mode.
+
+- Ran `python3 tests/session.py` on both machines, in a disposable nested
+  compositor with a temporary home and state directory. All 18 checks passed on
+  both. The test config now loads `default.hypr.toggles`, so saved layouts load
+  after the plugin's loader, as in a real standalone install.
+- The test runs Omarchy's own `omarchy-hyprland-workspace-layout-toggle`, the
+  command behind Super+L, Super+Alt+L, and the display key. A forward cycle and
+  a back cycle each went through scrolling and floating and returned to three
+  equal hy3 tiles. After each step, `omarchy-hyprland-workspace-layout-current`
+  printed the mode, and the notification text matched Omarchy's message for it.
+  `omarchy-hyprland-workspace-layout-default` printed `dwindle`.
+- The test replaces `omarchy-notification-send` and `omarchy-shell` with stubs,
+  so the nested run sends nothing to the desktop's notifications or shell.
+- On the floating workspace, the plugin's Super+Left and Super+Shift+Left ran
+  Hyprland's own focus and swap, and the windows stayed floating.
+- A native window group floated with the workspace and tiled again as one
+  group of two.
+- After a reload, a saved `mode = "dwindle"` file, a file in the format of the
+  plugin's older releases, and a workspace with no file all used hy3. A saved
+  scrolling file used scrolling. Omarchy's command printed `dwindle` for the
+  first three.
+- With the plugin skipped by a mismatched build stamp, the same files gave
+  stock dwindle, and Omarchy's cycle switched between its stock layouts.
+- Loaded the library after the config, with the two Lua steps that the Omarchy
+  service runs. The saved files and the default then used hy3.
+- All 31 unit tests passed on both machines. The layout files of the live
+  desktops did not change during the nested runs.
+
+Not validated: an Omarchy without workspace modes, which keeps the plugin's
+own Super+L toggle. Neither machine has one. `tests/plugin_session.py` and
+`tests/capture_preview.py` got the same helper loading as the session test, but
+were not run. The service itself, the bar, the dock, and the Appearance menu
+were not exercised. Titlebars on floating windows were not inspected.
+
 ## Hyprland 0.57
 
 Validated on 2026-11-21 on two machines: Hyprland 0.56.2 with Omarchy 4.5.0,
@@ -38,12 +77,12 @@ and Hyprland 0.57.2 with an Omarchy edge build.
   columns stayed equal. On Hyprland 0.56.2, Super+L on a named workspace saved
   a layout file for it. Both pass after the fix on both versions.
 
-Not validated on Hyprland 0.57.2: the Omarchy service. `tests/plugin_session.py`
-was not run. It starts a second Omarchy shell and runs the real plugin
-commands, so it is less isolated than the session test. It also has the old
-copy of `o` and needs the same change. No library was loaded into a live
-desktop on either machine. Multiple monitors and a full Omarchy configuration
-are not covered by the nested test.
+Not validated on Hyprland 0.57.2 by these runs: the Omarchy service.
+`tests/plugin_session.py` was not run. It starts a second Omarchy shell and
+runs the real plugin commands, so it is less isolated than the session test.
+These runs loaded no library into a live desktop. Multiple monitors and a full
+Omarchy configuration are not covered by the nested test. After these runs, the
+owner enabled this branch on the live Hyprland 0.57.2 desktop, where it loaded.
 
 ## Animated preview
 
