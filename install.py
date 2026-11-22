@@ -20,8 +20,16 @@ REPO = Path(__file__).resolve().parent
 PROFILE = REPO
 BUILD = PROFILE / ".build"
 OMARCHY = Path(os.environ.get("OMARCHY_PATH", "/usr/share/omarchy"))
-HY3_COMMIT = "42b7ed8fd9aefd3f36e5f617afd5071245c67853"
-ARCHIVE_SHA256 = "b4b8842cdfb0562f1f4228ef35c746f040379a33ee0912ad089f693206c34076"
+# Each supported Hyprland release series pins one hy3 revision, the SHA-256 of
+# its source archive, and the patch that applies to it.
+HY3_SOURCES = {
+    "0.56": {"commit": "42b7ed8fd9aefd3f36e5f617afd5071245c67853",
+             "sha256": "b4b8842cdfb0562f1f4228ef35c746f040379a33ee0912ad089f693206c34076",
+             "patch": "hy3.patch"},
+    "0.57": {"commit": "4c0199b42967b3511e3520b75cfa1f6411fb7e87",
+             "sha256": "ab84e5cab4cd437a95a2a121390ba0609969ded02c815dc34e33d2d07f89dc63",
+             "patch": "hy3-0.57.patch"},
+}
 ARCHIVE_MAX_BYTES = 8 * 1024 * 1024
 DOWNLOAD_CONNECT_SECONDS = 15
 DOWNLOAD_SECONDS = 120
@@ -76,15 +84,28 @@ def atomic_write(path, data, mode):
             os.unlink(temporary)
 
 
+def hy3_source(header):
+    """Select the pinned hy3 source from the text of Hyprland's version.h."""
+    tag = re.search(r'^#define\s+GIT_TAG\s+"v?((\d+\.\d+)[^"]*)"', header, re.MULTILINE)
+    if not tag or tag[2] not in HY3_SOURCES:
+        found = f"Hyprland {tag[1]}" if tag else "This Hyprland version"
+        supported = ", ".join(f"{series}.x" for series in HY3_SOURCES)
+        raise ValueError(f"{found} is not supported. Supported versions: {supported}.")
+    return HY3_SOURCES[tag[2]]
+
+
 def build_signature():
     try:
         headers = Path("/usr/include/hyprland/src/version.h").read_bytes()
     except FileNotFoundError:
         raise ValueError("Missing Hyprland headers. Run python3 install.py --check and see README.md#requirements.") from None
+    # The source follows the installed Hyprland, so an upgrade to another
+    # release series changes the signature and triggers a rebuild.
+    source = hy3_source(headers.decode(errors="replace"))
     # Do not reuse libraries compiled with the old inherited environment.
-    return {"build_policy": 2, "upstream": HY3_COMMIT, "arch": platform.machine(),
+    return {"build_policy": 2, "upstream": source["commit"], "arch": platform.machine(),
             "headers": hashlib.sha256(headers).hexdigest(),
-            "patch": hashlib.sha256((PROFILE / "hy3.patch").read_bytes()).hexdigest()}
+            "patch": hashlib.sha256((PROFILE / source["patch"]).read_bytes()).hexdigest()}
 
 
 def build_current(signature):
@@ -133,8 +154,14 @@ def prerequisite_errors(env, cwd):
             errors.append(f"Missing /usr/bin/{tool}. Arch package: {package}.")
     if sys.version_info < (3, 9):
         errors.append("Python 3.9 or newer is required.")
-    if not Path("/usr/include/hyprland/src/version.h").is_file():
+    version = Path("/usr/include/hyprland/src/version.h")
+    if not version.is_file():
         errors.append("Missing Hyprland version.h. Use the headers from the installed Hyprland package.")
+    else:
+        try:
+            hy3_source(version.read_text(errors="replace"))
+        except (OSError, ValueError) as error:
+            errors.append(str(error))
     if "curl" not in missing:
         try:
             check_curl(env, cwd)
@@ -169,10 +196,10 @@ def check_prerequisites():
                          + "\nSee README.md#requirements for the dependency command, then run --check again.")
 
 
-def download_archive(archive, env):
+def download_archive(archive, env, source):
     """Bound curl's transfer before verifying the archive in constant memory."""
     check_curl(env, archive.parent)
-    url = f"https://codeload.github.com/outfoxxed/hy3/tar.gz/{HY3_COMMIT}"
+    url = f"https://codeload.github.com/outfoxxed/hy3/tar.gz/{source['commit']}"
     try:
         subprocess.run([
             "/usr/bin/curl", "--disable", "--fail", "--silent", "--show-error",
@@ -189,7 +216,7 @@ def download_archive(archive, env):
                 if size > ARCHIVE_MAX_BYTES:
                     raise ValueError("hy3 download exceeds the archive size limit.")
                 digest.update(chunk)
-        if digest.hexdigest() != ARCHIVE_SHA256:
+        if digest.hexdigest() != source["sha256"]:
             raise ValueError("hy3 download checksum mismatch; nothing was built or installed.")
     except (OSError, ValueError, subprocess.SubprocessError):
         archive.unlink(missing_ok=True)
@@ -211,17 +238,18 @@ def build_hy3():
             home.mkdir()
             env = build_environment(home)
             archive = work / "hy3.tar.gz"
-            download_archive(archive, env)
+            header = Path("/usr/include/hyprland/src/version.h").read_text()
+            pinned = hy3_source(header)
+            download_archive(archive, env, pinned)
             subprocess.run(["/usr/bin/tar", "-xzf", str(archive), "-C", str(work)], env=env, cwd=work, check=True)
-            source = work / f"hy3-{HY3_COMMIT}"
-            subprocess.run(["/usr/bin/patch", "--batch", "--forward", "-p1", "-i", str(PROFILE / "hy3.patch")], env=env, cwd=source, check=True)
+            source = work / f"hy3-{pinned['commit']}"
+            subprocess.run(["/usr/bin/patch", "--batch", "--forward", "-p1", "-i", str(PROFILE / pinned["patch"])], env=env, cwd=source, check=True)
             subprocess.run(["/usr/bin/cmake", "-S", str(source), "-B", str(work / "out"),
                             "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
                             "-DCMAKE_C_COMPILER=/usr/bin/cc", "-DCMAKE_CXX_COMPILER=/usr/bin/c++",
                             "-DCMAKE_MAKE_PROGRAM=/usr/bin/ninja", "-DPKG_CONFIG_EXECUTABLE=/usr/bin/pkg-config"],
                            env=env, cwd=work, check=True)
             subprocess.run(["/usr/bin/cmake", "--build", str(work / "out"), "--parallel", "4"], env=env, cwd=work, check=True)
-            header = Path("/usr/include/hyprland/src/version.h").read_text()
             commit = re.search(r'^#define\s+GIT_COMMIT_HASH\s+"([0-9a-f]+)"', header, re.MULTILINE)
             if not commit:
                 raise ValueError("Cannot identify the installed Hyprland headers.")

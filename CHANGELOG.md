@@ -1,7 +1,32 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
 
+- Add equal tiling as one more step in Omarchy's workspace layout cycle.
+  Super+L and the display key step forward through equal tiling, tiling
+  (dwindle), scrolling, and floating. Super+Alt+L steps back. Omarchy's own
+  command makes each step between its layouts, so they stay as Omarchy made
+  them. Before, the plugin replaced Super+L with a toggle between equal tiling
+  and scrolling. Floating was out of reach, and Omarchy's other layout keys
+  changed the workspace to dwindle. An Omarchy release without workspace modes
+  keeps that toggle.
+- Workspaces start with equal tiling when no default layout is saved in
+  Omarchy. A default saved under Appearance > Workspace Layout stays in charge.
+- On a floating window, Super+Shift+arrows now swap windows, as Omarchy does
+  without the plugin. Before, they moved the window in that direction.
+- Build on Hyprland 0.57. The builder selects the hy3 source and patch for the
+  installed Hyprland release, 0.56.x or 0.57.x, and builds again after an
+  upgrade. Other releases stop before any download, with a message that names
+  the supported versions. On Hyprland 0.57.2 the layout tests pass in a nested
+  compositor. The plugin lifecycle test has not yet run there.
+- Fix Super+Alt+P on a special workspace with Hyprland 0.57. These workspaces
+  have no numbered id there, so the shortcut counted the windows of all
+  workspaces and never made a priority column.
+- Super+L does nothing on a named workspace, like Omarchy's own layout toggle.
+  It used to save a layout file under the internal id of the workspace. On
+  Hyprland 0.57 a named workspace has no such id.
+- The session test loads Omarchy's own helper modules in place of a copy of
+  one function. It runs again on current Omarchy stable and edge.
 - Keep the service running when it receives SIGTERM. A broad `pkill` used to
   stop it, which unloaded hy3 and returned Omarchy's default Super+L. That
   binding could then save the wrong layout for a workspace. A build that the

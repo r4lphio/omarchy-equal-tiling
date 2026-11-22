@@ -22,9 +22,12 @@ For example, with `A | D | (B / C)`, focus D and press Right twice. The result i
 ## Requirements
 
 Tested with Hyprland **0.56.2** and Omarchy's Lua configuration and Quickshell
-plugin system. Older `.conf` setups are unsupported. Other Hyprland releases
-need a compatible hy3 revision and a fresh build. Keep Omarchy's standard
-`~/.config` location.
+plugin system. On Hyprland **0.57.2**, the layout tests pass in a disposable
+nested compositor, and the plugin runs on one live desktop. The plugin
+lifecycle test has not yet run on 0.57.2. The builder selects the hy3 source
+for the installed Hyprland release, 0.56.x or 0.57.x. Other releases stop with
+a message that names the supported versions. Older `.conf` setups are
+unsupported. Keep Omarchy's standard `~/.config` location.
 
 The build needs Python 3.9+, curl 8.4.0+, tar, patch, CMake, Ninja, pkg-config, a C++23
 compiler, and development files for Hyprland, pixman, libdrm, Pango, libinput,
@@ -54,9 +57,10 @@ omarchy plugin enable ralphsmith80.equal-tiling
 
 From a checkout, use `python3 install.py --check`. It checks the system tools,
 curl version, C++23 language support, Hyprland headers, and development libraries.
-Missing requirements include their Arch package names. The check makes no network
-requests and does not install packages or change your desktop. A passing check
-does not guarantee that the pinned native source supports another Hyprland version.
+Missing requirements include their Arch package names. It also reports a Hyprland
+release that has no pinned hy3 source. The check makes no network requests and
+does not install packages or change your desktop. A passing check does not
+compile the native source.
 Fresh builds run the same check before downloading source. A valid cached build
 does not require the build tools again.
 
@@ -95,12 +99,15 @@ disable and enable the plugin to retry.
 | Super+arrows | Focus a window through hy3's layout tree |
 | Super+Shift+arrows | Move a window through tiling groups |
 | Super+Alt+P | Toggle the priority column, or make all tiles equal |
-| Super+L | Switch the workspace between equal tiling and scrolling |
+| Super+L | Step to the next workspace layout: equal tiling, then Omarchy's layouts |
+| Super+Alt+L | Step to the previous workspace layout |
 
-These replace Omarchy's directional focus, directional swap, and workspace
-layout shortcuts while enabled. Omarchy's Super+J split toggle, Super+G window
-grouping, and related tab shortcuts remain available. Super+Ctrl+Backspace
-centers a lone tile using Omarchy's single-window square setting. Custom
+The arrow shortcuts replace Omarchy's directional focus and directional swap
+while enabled. The layout shortcuts add equal tiling to Omarchy's layout cycle.
+Omarchy's Super+J split toggle, Super+G window grouping, and related tab
+shortcuts remain available.
+Super+Ctrl+Backspace centers a lone tile using Omarchy's single-window square
+setting. Custom
 `layout.single_window_aspect_ratio` and tolerance values also apply.
 Movement does not move windows across monitors. This plugin
 does not reproduce COSMIC's tab behavior.
@@ -111,8 +118,33 @@ columns share the other half. On a 7680 px ultrawide, the middle column is the
 width of one 4K display. Press Super+Alt+P again to make all tiles equal. In
 any other layout, the shortcut makes all tiles on the workspace equal.
 
-Super+L saves the workspace's layout choice in Omarchy's workspace state. Saved
-hy3 choices fall back to dwindle while hy3 is unavailable.
+Super+L steps the workspace through its layouts: equal tiling, then Omarchy's
+own layouts in Omarchy's order, then equal tiling again. With today's Omarchy
+that is equal tiling, tiling (dwindle), scrolling, and floating. Super+Alt+L
+goes the other way. The display key goes forward. Omarchy's layouts stay as
+Omarchy made them. Its own command makes each step between them, saves the
+layout, and shows its notification. The plugin adds only the step into equal
+tiling, with a notification of its own. On a floating window, the arrow
+shortcuts do what Omarchy does without the plugin.
+
+Workspaces start with equal tiling. A default that you chose under Appearance >
+Workspace Layout stays the default, also when it is Tiling. Equal tiling is
+then one step of the cycle. To make equal tiling the default again, delete
+`~/.local/state/omarchy/workspace-layouts/default.lua` and reload Hyprland.
+
+The bar shows its tiling icon for equal tiling. The layout button in the bar
+runs Omarchy's own cycle. It steps out of equal tiling, but not into it. While
+equal tiling is the default, Appearance > Workspace Layout shows no check mark.
+
+The plugin saves nothing while equal tiling is the default. With another
+default, it saves an equal tiling workspace in Omarchy's layout files under the
+name `equal`. When the plugin is disabled, Omarchy and Hyprland do not know
+that name. The workspace then uses dwindle, and Omarchy's cycle steps from it
+to tiling.
+
+On an Omarchy release without these workspace modes, the plugin keeps its own
+Super+L. It switches the workspace between equal tiling and scrolling, saves
+the choice, and does nothing on a named workspace.
 
 ## Updates and removal
 
@@ -134,8 +166,9 @@ hy3 like a disable. SIGKILL skips that cleanup and leaves hy3 loaded until you
 log out.
 
 After updating Hyprland, log out and back in. The service rebuilds against the
-installed headers when needed. It refuses to load a build that does not match
-the running compositor.
+installed headers when needed. An update from 0.56 to 0.57 also selects the hy3
+source for the new release. The service refuses to load a build that does not
+match the running compositor.
 
 Builds remain under `${XDG_CACHE_HOME:-$HOME/.cache}/omarchy-equal-tiling` for reuse.
 Removal keeps that cache, the service log, and your saved workspace choices. You
@@ -214,13 +247,21 @@ All text is public repository content; it does not capture the active desktop.
 `preview.png` is a still from the same recording, because the plugin marketplace
 accepts only static previews.
 
-`hy3.patch` applies to upstream commit
-`42b7ed8fd9aefd3f36e5f617afd5071245c67853`. The expected archive SHA-256 is
-`b4b8842cdfb0562f1f4228ef35c746f040379a33ee0912ad089f693206c34076`.
-The patch adds `hl.plugin.hy3.move_cosmic(direction)`, honors Hyprland's single-window
+`HY3_SOURCES` in `install.py` pins one upstream hy3 commit for each Hyprland
+release series. The builder reads the series from Hyprland's `version.h`.
+
+| Hyprland | Patch | hy3 commit | Archive SHA-256 |
+| --- | --- | --- | --- |
+| 0.56.x | `hy3.patch` | `42b7ed8fd9aefd3f36e5f617afd5071245c67853` | `b4b8842cdfb0562f1f4228ef35c746f040379a33ee0912ad089f693206c34076` |
+| 0.57.x | `hy3-0.57.patch` | `4c0199b42967b3511e3520b75cfa1f6411fb7e87` | `ab84e5cab4cd437a95a2a121390ba0609969ded02c815dc34e33d2d07f89dc63` |
+
+The two patches make the same changes. They differ only in the name of the
+workspace type, which Hyprland 0.57 changed. Keep them in sync. Each patch adds
+`hl.plugin.hy3.move_cosmic(direction)`, honors Hyprland's single-window
 aspect settings, and implements target swapping for native window groups.
-It leaves upstream movement and focus dispatchers intact. Update the source pin and checksum together, then
-build and run the checks before publishing a release.
+It leaves upstream movement and focus dispatchers intact. Update a commit, its
+checksum, and its patch together, then build and run the checks before
+publishing a release.
 
 ## License and credit
 

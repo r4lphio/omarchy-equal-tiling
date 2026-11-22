@@ -26,7 +26,8 @@ def check_controls(ctl, ev, windows, focus, open_window):
         workspace(40)
         open_window('Aspect')
         full = visible('Aspect')
-        ev('hl.config({layout={single_window_aspect_ratio={1,1}}})')
+        # Zero tolerance keeps the result independent of the nested window's shape.
+        ev('hl.config({layout={single_window_aspect_ratio={1,1},single_window_aspect_ratio_tolerance=0}})')
         square = visible('Aspect')
         assert abs(square['size'][0] - square['size'][1]) <= 2, (full, square)
         assert square['size'] != full['size'], (full, square)
@@ -37,7 +38,7 @@ def check_controls(ctl, ev, windows, focus, open_window):
         assert abs(rectangle['size'][0] / rectangle['size'][1] - 4 / 3) < .02, rectangle
         ev('hl.config({layout={single_window_aspect_ratio={1,1},single_window_aspect_ratio_tolerance=.5}})')
         assert visible('Aspect')['size'] == full['size']
-        ev('hl.config({layout={single_window_aspect_ratio_tolerance=.1}})')
+        ev('hl.config({layout={single_window_aspect_ratio_tolerance=0}})')
         key('SUPER + F')
         fullscreen = visible('Aspect')
         assert fullscreen['fullscreen'] != 0 and fullscreen['size'][0] >= full['size'][0], fullscreen

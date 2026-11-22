@@ -87,20 +87,20 @@ class DownloadTest(unittest.TestCase):
             return real_run(command, **kwargs)
 
         self.stack.enter_context(patch.object(installer.subprocess, "run", side_effect=local_transfer))
-        self.stack.enter_context(patch.object(installer, "ARCHIVE_SHA256", hashlib.sha256(b"verified archive").hexdigest()))
+        self.source = {"commit": "test", "sha256": hashlib.sha256(b"verified archive").hexdigest()}
         self.stack.enter_context(patch.object(installer, "ARCHIVE_MAX_BYTES", 1024))
 
     def test_verified_download_ignores_user_curl_config_and_build_controls(self):
         (self.work / ".curlrc").write_text("proxy = http://127.0.0.1:1\n")
         with patch.dict(os.environ, {"PATH": "/missing", "LD_PRELOAD": "/missing.so",
                                     "CURL_HOME": str(self.work), "CMAKE_TOOLCHAIN_FILE": "/missing"}):
-            installer.download_archive(self.archive, self.env)
+            installer.download_archive(self.archive, self.env, self.source)
         self.assertEqual(self.archive.read_bytes(), b"verified archive")
 
     def test_checksum_failure_removes_download(self):
         self.route = "/corrupt"
         with self.assertRaisesRegex(ValueError, "checksum mismatch"):
-            installer.download_archive(self.archive, self.env)
+            installer.download_archive(self.archive, self.env, self.source)
         self.assertFalse(self.archive.exists())
 
     def test_curl_rejects_oversized_response_with_or_without_content_length(self):
@@ -108,7 +108,7 @@ class DownloadTest(unittest.TestCase):
             with self.subTest(route=route):
                 self.route = route
                 with self.assertRaises(subprocess.CalledProcessError) as failure:
-                    installer.download_archive(self.archive, self.env)
+                    installer.download_archive(self.archive, self.env, self.source)
                 self.assertEqual(failure.exception.returncode, 63)
                 self.assertFalse(self.archive.exists())
 
@@ -117,7 +117,7 @@ class DownloadTest(unittest.TestCase):
         with patch.object(installer, "DOWNLOAD_SECONDS", .2):
             started = time.monotonic()
             with self.assertRaises(subprocess.CalledProcessError) as failure:
-                installer.download_archive(self.archive, self.env)
+                installer.download_archive(self.archive, self.env, self.source)
         self.assertEqual(failure.exception.returncode, 28)
         self.assertLess(time.monotonic() - started, 2)
         self.assertFalse(self.archive.exists())
@@ -126,7 +126,7 @@ class DownloadTest(unittest.TestCase):
         with patch.object(installer.subprocess, "run", return_value=subprocess.CompletedProcess(
                 [], 0, stdout="curl 8.3.0 (test)")):
             with self.assertRaisesRegex(ValueError, "curl 8.4.0"):
-                installer.download_archive(self.archive, self.env)
+                installer.download_archive(self.archive, self.env, self.source)
         self.assertFalse(self.transfers)
         self.assertFalse(self.archive.exists())
 

@@ -22,7 +22,22 @@ if not options.loaded then hl.plugin.load(plugin_path) end
 if not hl.plugin.hy3 then return end
 local hy3 = hl.plugin.hy3
 if not hy3.move_cosmic then return end
-hl.config({ general = { layout = "hy3" }, plugin = { hy3 = { group_inset = 0 } } })
+hl.config({ plugin = { hy3 = { group_inset = 0 } } })
+
+-- Newer Omarchy releases cycle a workspace through layout modes of their own:
+-- tiling ("dwindle"), scrolling, and floating.
+local workspace_modes = pcall(require, "default.hypr.workspace-modes") and o.workspace_mode ~= nil
+local layouts = state_home .. "/omarchy/workspace-layouts"
+local function saved_default()
+  local file = io.open(layouts .. "/default.lua", "r")
+  if file then file:close() end
+  return file ~= nil
+end
+-- Workspaces start with equal tiling in place of dwindle. A default layout
+-- that is saved in Omarchy stays in charge, also when it is dwindle.
+if not workspace_modes or (hl.get_config("general.layout") == "dwindle" and not saved_default()) then
+  hl.config({ general = { layout = "hy3" } })
+end
 
 local function active_hy3()
   local window = hl.get_active_window()
@@ -41,7 +56,9 @@ end
 -- skew the result. The Lua API does not expose pseudotile state.
 local function priority_columns(active)
   local columns, by_span = {}, {}
-  for _, window in ipairs(hl.get_windows({workspace = active.workspace.id, floating = false})) do
+  -- Filter by the workspace object. Special and named workspaces have no id
+  -- on Hyprland 0.57.
+  for _, window in ipairs(hl.get_windows({workspace = active.workspace, floating = false})) do
     local span = window.at.x .. ":" .. window.size.x
     if not by_span[span] then
       by_span[span] = {x = window.at.x, width = window.size.x, windows = {}}
@@ -68,11 +85,14 @@ for _, item in ipairs({{"LEFT", "l"}, {"RIGHT", "r"}, {"UP", "u"}, {"DOWN", "d"}
   hl.unbind("SUPER + SHIFT + " .. key)
   local description = "Move window " .. key:lower() .. " through tiling groups"
   o.bind("SUPER + SHIFT + " .. key, description, function()
+    local window = hl.get_active_window()
     if active_hy3() then
-      local window = hl.get_active_window()
       if window and window.fullscreen == 0 then
         hl.dispatch(hy3.move_cosmic(direction))
       end
+    elseif window and window.floating then
+      -- Omarchy's default, so a floating workspace keeps its normal behavior.
+      hl.dispatch(hl.dsp.window.swap({direction = direction}))
     else
       hl.dispatch(hl.dsp.window.move({direction = direction}))
     end
@@ -117,23 +137,107 @@ o.bind("SUPER + ALT + P", "Toggle priority column / equal tiles", function()
   end
   hl.dispatch(hy3.equalize({scope = "workspace"}))
 end)
--- Keep Omarchy's layout toggle useful with hy3 as the regular tiling layout.
-hl.unbind("SUPER + L")
-o.bind("SUPER + L", "Toggle equal tiling / scrolling", function()
-  local workspace = hl.get_active_workspace()
-  if not workspace then return end
-  local layout = workspace.tiled_layout == "hy3" and "scrolling" or "hy3"
-  local directory = state_home .. "/omarchy/workspace-layouts"
-  -- A fresh home has no saved layouts yet. Quote the directory for the shell.
-  os.execute("mkdir -p -- '" .. directory:gsub("'", "'\\''") .. "'")
-  local path = directory .. "/" .. workspace.id .. ".lua"
-  local file = io.open(path, "w")
-  if file then
-    local value = layout == "hy3" and '(hl.plugin.hy3 and "hy3" or "dwindle")' or '"scrolling"'
-    file:write('hl.workspace_rule({workspace = "' .. workspace.id .. '", layout = ' .. value .. '})\n')
-    file:close()
+-- With workspace modes, equal tiling is one more step in Omarchy's layout cycle:
+-- equal tiling, Omarchy's modes in Omarchy's order, equal tiling again. Omarchy's
+-- own command makes every step between its modes, and the step from equal
+-- tiling into them. This module makes only the step into equal tiling. Omarchy's
+-- commands do not know equal tiling. They treat an unknown name as a tiled
+-- layout and step from it to their first mode.
+if workspace_modes then
+  -- The two ends of Omarchy's cycle. Its command cannot say which mode comes
+  -- next without changing to it, so these two names are the only ones copied.
+  local FIRST, LAST = "dwindle", "floating"
+  -- The saved name of equal tiling. Omarchy's commands read saved names made
+  -- of letters only, so "hy3" cannot be saved. Without this module the name is
+  -- unknown to Hyprland too, which then tiles the workspace with dwindle.
+  local EQUAL = "equal"
+  local SAVED = 'o.workspace_mode({ workspace = "%s", mode = "%s" })\n'
+  local TOGGLE = "omarchy-hyprland-workspace-layout-toggle"
+  -- One notification that replaces the last one, and a refresh of the bar
+  -- and the dock, as Omarchy's command does for its own modes.
+  local ANNOUNCE = 'state="${XDG_STATE_HOME:-$HOME/.local/state}/omarchy/workspace-layout-notification"; '
+    .. 'last=0; [ -r "$state" ] && read -r last < "$state"; '
+    .. 'id=$(omarchy-notification-send -p -r "${last:-0}" -g 󱂬 "Workspace layout set to equal tiling") '
+    .. '&& mkdir -p "${state%/*}" && printf "%s\\n" "$id" > "$state"; '
+    .. 'omarchy-shell -q omarchy.workspaces refresh; omarchy-shell -q omarchy.dock refresh'
+
+  -- Follow the modes that Omarchy sets, from saved files and from its command.
+  -- Its own table of them is private. Give the saved equal tiling mode its layout.
+  local modes, default_mode = {}, nil
+  local set_mode = o.workspace_mode
+  o.workspace_mode = function(spec)
+    if spec.default then
+      default_mode = spec.default
+    elseif spec.workspace then
+      modes[tostring(spec.workspace)] = spec.mode
+      if spec.mode == EQUAL then spec = { workspace = spec.workspace, mode = "hy3" } end
+    end
+    return set_mode(spec)
   end
-  hl.workspace_rule({workspace = tostring(workspace.id), layout = layout})
-end)
+
+  local function save(id, mode)
+    os.execute("mkdir -p -- '" .. layouts:gsub("'", "'\\''") .. "'")
+    local file = io.open(layouts .. "/" .. id .. ".lua", "w")
+    if file then
+      file:write(SAVED:format(id, mode))
+      file:close()
+    end
+  end
+
+  local function cycle(back)
+    return function()
+      local workspace = hl.get_active_workspace()
+      -- Like Omarchy's command, only numbered workspaces have a layout mode.
+      if not workspace or not workspace.id or workspace.id < 1 then return end
+      local id = tostring(workspace.id)
+      local mode = modes[id] or default_mode or workspace.tiled_layout
+      if mode == (back and FIRST or LAST) then
+        if default_mode == nil and hl.get_config("general.layout") == "hy3" then
+          -- Equal tiling is the default, so the workspace follows it again.
+          os.remove(layouts .. "/" .. id .. ".lua")
+        else
+          save(id, EQUAL)
+        end
+        -- Omarchy's function also tiles the windows that its floating mode floated.
+        o.workspace_mode({ workspace = id, mode = EQUAL })
+        hl.exec_cmd(ANNOUNCE)
+      else
+        if mode == EQUAL or mode == "hy3" then
+          -- Omarchy's command steps forward from an unknown name to its first
+          -- mode, and back from its first mode to its last mode.
+          save(id, back and FIRST or EQUAL)
+        end
+        hl.exec_cmd(TOGGLE .. (back and " back" or ""))
+      end
+    end
+  end
+
+  for keys, back in pairs({ ["SUPER + L"] = false, ["XF86Display"] = false, ["SUPER + ALT + L"] = true }) do
+    hl.unbind(keys)
+    o.bind(keys, "Cycle workspace layout" .. (back and " back" or ""), cycle(back))
+  end
+else
+  -- Without workspace modes, keep Omarchy's layout toggle useful with hy3 as
+  -- the regular tiling layout.
+  hl.unbind("SUPER + L")
+  o.bind("SUPER + L", "Toggle equal tiling / scrolling", function()
+    local workspace = hl.get_active_workspace()
+    -- Like Omarchy's own toggle, only numbered workspaces save a layout. A named
+    -- workspace has a negative id on Hyprland 0.56 and no id on 0.57.
+    if not workspace or not workspace.id or workspace.id < 1 then return end
+    local layout = workspace.tiled_layout == "hy3" and "scrolling" or "hy3"
+    local directory = state_home .. "/omarchy/workspace-layouts"
+    -- A fresh home has no saved layouts yet. Quote the directory for the shell.
+    os.execute("mkdir -p -- '" .. directory:gsub("'", "'\\''") .. "'")
+    local path = directory .. "/" .. workspace.id .. ".lua"
+    local file = io.open(path, "w")
+    if file then
+      local value = layout == "hy3" and '(hl.plugin.hy3 and "hy3" or "dwindle")' or '"scrolling"'
+      file:write('hl.workspace_rule({workspace = "' .. workspace.id .. '", layout = ' .. value .. '})\n')
+      file:close()
+    end
+    hl.workspace_rule({workspace = tostring(workspace.id), layout = layout})
+  end)
+end
 
 return true
