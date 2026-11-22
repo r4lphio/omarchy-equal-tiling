@@ -1,43 +1,62 @@
 # Validation
 
-## Omarchy workspace layout cycle
+## Layout cycle with equal tiling in 0.4.0
 
 Validated on 2026-11-21 on two machines: Hyprland 0.56.2 with Omarchy 4.5.0,
 and Hyprland 0.57.2 with an Omarchy edge build. Both Omarchy versions have the
 layout cycle with a floating mode.
 
 - Ran `python3 tests/session.py` on both machines, in a disposable nested
-  compositor with a temporary home and state directory. All 18 checks passed on
-  both. The test config now loads `default.hypr.toggles`, so saved layouts load
-  after the plugin's loader, as in a real standalone install.
-- The test runs Omarchy's own `omarchy-hyprland-workspace-layout-toggle`, the
-  command behind Super+L, Super+Alt+L, and the display key. A forward cycle and
-  a back cycle each went through scrolling and floating and returned to three
-  equal hy3 tiles. After each step, `omarchy-hyprland-workspace-layout-current`
-  printed the mode, and the notification text matched Omarchy's message for it.
-  `omarchy-hyprland-workspace-layout-default` printed `dwindle`.
-- The test replaces `omarchy-notification-send` and `omarchy-shell` with stubs,
-  so the nested run sends nothing to the desktop's notifications or shell.
+  compositor with a temporary home and state directory. All 19 checks passed on
+  both. The test config loads `default.hypr.toggles`, so saved layouts load
+  after the plugin's loader, as in a real standalone install. Stubs replace
+  `omarchy-notification-send` and `omarchy-shell`, so the nested run sends
+  nothing to the desktop's notifications or shell.
+- Pressed the plugin's Super+L four times and Super+Alt+L four times on a
+  workspace with three tiles. Forward went from equal tiling to dwindle,
+  scrolling, floating, and back to equal tiling. Back went the other way. After
+  each step the test read three facts: the mode from Omarchy's
+  `omarchy-hyprland-workspace-layout-current`, the layout that Hyprland
+  reports for the workspace, and the notification text. At the tiling step
+  Hyprland reported `dwindle`, not `hy3`. At the equal step the three tiles
+  had equal sizes and the workspace had no saved file.
 - On the floating workspace, the plugin's Super+Left and Super+Shift+Left ran
   Hyprland's own focus and swap, and the windows stayed floating.
 - A native window group floated with the workspace and tiled again as one
-  group of two.
-- After a reload, a saved `mode = "dwindle"` file, a file in the format of the
-  plugin's older releases, and a workspace with no file all used hy3. A saved
-  scrolling file used scrolling. Omarchy's command printed `dwindle` for the
-  first three.
-- With the plugin skipped by a mismatched build stamp, the same files gave
-  stock dwindle, and Omarchy's cycle switched between its stock layouts.
+  group of two. The display key made the forward step in that check.
+- Super+L on a named workspace saved nothing and changed no layout.
+- After a reload: a workspace left in dwindle by the cycle stayed dwindle, a
+  saved `equal` mode and a file in the format of the plugin's 0.3 releases
+  used hy3, a saved scrolling mode used scrolling, and a workspace with no
+  file used hy3. The plugin wrote no `default.lua`.
+- With `default.lua` set to scrolling, a new workspace used scrolling. The
+  cycle went to floating, equal tiling, dwindle, and scrolling. Equal tiling
+  was then saved as `mode = "equal"`, and the step onto scrolling removed the
+  workspace's file.
+- With the plugin skipped by a mismatched build stamp, there were no config
+  errors. The same files gave stock dwindle, also the saved `equal` mode.
+  Omarchy's own command then stepped that workspace to dwindle, scrolling,
+  floating, and dwindle again, and back to floating.
 - Loaded the library after the config, with the two Lua steps that the Omarchy
-  service runs. The saved files and the default then used hy3.
+  service runs. The saved modes then had their layouts, and Super+Alt+L on the
+  dwindle workspace went to equal tiling.
 - All 31 unit tests passed on both machines. The layout files of the live
   desktops did not change during the nested runs.
+- Read the Omarchy shell code that uses the mode. The bar shows its tiling icon
+  for every name that is not scrolling or floating. The dock shows on floating
+  only. The Appearance menu puts a check mark on tiling, scrolling, or floating
+  when the default has that name, so it shows none for the equal tiling default.
 
-Not validated: an Omarchy without workspace modes, which keeps the plugin's
-own Super+L toggle. Neither machine has one. `tests/plugin_session.py` and
+An earlier design in this change gave Omarchy's tiling mode the hy3 layout and
+saved a tiling default. It was replaced, because it took Omarchy's dwindle out
+of the cycle.
+
+Not validated: an Omarchy without workspace modes, which keeps the plugin's own
+Super+L toggle. Neither machine has one. `tests/plugin_session.py` and
 `tests/capture_preview.py` got the same helper loading as the session test, but
-were not run. The service itself, the bar, the dock, and the Appearance menu
-were not exercised. Titlebars on floating windows were not inspected.
+were not run. The service itself was not exercised. The bar, the dock, and the
+Appearance menu were read, not run. Titlebars on floating windows were not
+inspected.
 
 ## Hyprland 0.57
 

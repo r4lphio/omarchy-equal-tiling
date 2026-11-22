@@ -99,11 +99,13 @@ disable and enable the plugin to retry.
 | Super+arrows | Focus a window through hy3's layout tree |
 | Super+Shift+arrows | Move a window through tiling groups |
 | Super+Alt+P | Toggle the priority column, or make all tiles equal |
-| Super+L | Omarchy's layout cycle, with equal tiling as its tiling layout |
+| Super+L | Step to the next workspace layout: equal tiling, then Omarchy's layouts |
+| Super+Alt+L | Step to the previous workspace layout |
 
-The first three replace Omarchy's directional focus and directional swap
-shortcuts while enabled, and add the priority column. Omarchy's Super+J split
-toggle, Super+G window grouping, and related tab shortcuts remain available.
+The arrow shortcuts replace Omarchy's directional focus and directional swap
+while enabled. The layout shortcuts add equal tiling to Omarchy's layout cycle.
+Omarchy's Super+J split toggle, Super+G window grouping, and related tab
+shortcuts remain available.
 Super+Ctrl+Backspace centers a lone tile using Omarchy's single-window square
 setting. Custom
 `layout.single_window_aspect_ratio` and tolerance values also apply.
@@ -116,22 +118,29 @@ columns share the other half. On a 7680 px ultrawide, the middle column is the
 width of one 4K display. Press Super+Alt+P again to make all tiles equal. In
 any other layout, the shortcut makes all tiles on the workspace equal.
 
-Super+L stays Omarchy's own layout cycle: tiling, scrolling, floating. So do
-Super+Alt+L, the display key, and the layout button in the bar. While the
-plugin is enabled, the tiling layout is equal tiling in place of dwindle.
-Omarchy's notifications, saved files, and bar keep their own names, so they
-call it tiling. A floating workspace floats the tiles, and the next press puts
-them back as equal tiles. On a floating window, the arrow shortcuts do what
-Omarchy does without the plugin. When you disable the plugin, the same saved
-layouts give Omarchy's dwindle again.
+Super+L steps the workspace through its layouts: equal tiling, then Omarchy's
+own layouts in Omarchy's order, then equal tiling again. With today's Omarchy
+that is equal tiling, tiling (dwindle), scrolling, and floating. Super+Alt+L
+goes the other way. The display key goes forward. Omarchy's layouts stay as
+Omarchy made them. Its own command makes each step between them, saves the
+layout, and shows its notification. The plugin adds only the step into equal
+tiling, with a notification of its own. On a floating window, the arrow
+shortcuts do what Omarchy does without the plugin.
 
-Omarchy's layout commands read the default layout from a saved file. When that
-file does not exist and the default is tiling, the plugin saves that default in
-`~/.local/state/omarchy/workspace-layouts/default.lua`, in Omarchy's own
-format. Without the file, the first Super+L press on a workspace would do
-nothing. The file stays after you disable or remove the plugin, and then means
-Omarchy's dwindle. Another default that you chose under Appearance > Workspace
-Layout stays your default. Equal tiling is then the tiling step of the cycle.
+Workspaces start with equal tiling. A default that you chose under Appearance >
+Workspace Layout stays the default, also when it is Tiling. Equal tiling is
+then one step of the cycle. To make equal tiling the default again, delete
+`~/.local/state/omarchy/workspace-layouts/default.lua` and reload Hyprland.
+
+The bar shows its tiling icon for equal tiling. The layout button in the bar
+runs Omarchy's own cycle. It steps out of equal tiling, but not into it. While
+equal tiling is the default, Appearance > Workspace Layout shows no check mark.
+
+The plugin saves nothing while equal tiling is the default. With another
+default, it saves an equal tiling workspace in Omarchy's layout files under the
+name `equal`. When the plugin is disabled, Omarchy and Hyprland do not know
+that name. The workspace then uses dwindle, and Omarchy's cycle steps from it
+to tiling.
 
 On an Omarchy release without these workspace modes, the plugin keeps its own
 Super+L. It switches the workspace between equal tiling and scrolling, saves

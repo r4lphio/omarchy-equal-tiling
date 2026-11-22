@@ -1,16 +1,17 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
 
-- Work with Omarchy's workspace layout cycle. Super+L, Super+Alt+L, the display
-  key, and the bar button stay Omarchy's own cycle through tiling, scrolling,
-  and floating. The tiling step is equal tiling while the plugin is enabled.
-  Before, the plugin replaced Super+L with its own two-layout toggle, so
-  floating was out of reach, and Omarchy's other layout keys changed the
-  workspace to dwindle. An Omarchy release without workspace modes keeps the
-  plugin's Super+L toggle.
-- Save Omarchy's tiling default in `workspace-layouts/default.lua` when no
-  default is saved. Omarchy's commands and bar then report tiling, not `hy3`.
+- Add equal tiling as one more step in Omarchy's workspace layout cycle.
+  Super+L and the display key step forward through equal tiling, tiling
+  (dwindle), scrolling, and floating. Super+Alt+L steps back. Omarchy's own
+  command makes each step between its layouts, so they stay as Omarchy made
+  them. Before, the plugin replaced Super+L with a toggle between equal tiling
+  and scrolling. Floating was out of reach, and Omarchy's other layout keys
+  changed the workspace to dwindle. An Omarchy release without workspace modes
+  keeps that toggle.
+- Workspaces start with equal tiling when no default layout is saved in
+  Omarchy. A default saved under Appearance > Workspace Layout stays in charge.
 - On a floating window, Super+Shift+arrows now swap windows, as Omarchy does
   without the plugin. Before, they moved the window in that direction.
 - Build on Hyprland 0.57. The builder selects the hy3 source and patch for the

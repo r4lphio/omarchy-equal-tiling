@@ -222,9 +222,9 @@ require("default.hypr.toggles")
                 # Newer Omarchy releases cycle tiling, scrolling, and floating themselves.
                 has_modes = subprocess.run(['hyprctl', 'eval', 'assert(o.workspace_mode)'], env=env,
                                            text=True, capture_output=True).stdout.strip() == 'ok'
-                modes = Modes(ctl, env, notifications)
+                modes = Modes(ctl, ev, env, notifications, layouts)
                 if has_modes:
-                    check_modes(modes, ctl, ev, windows, focus, open_window, layouts)
+                    check_modes(modes, ctl, ev, windows, focus, open_window)
                 else:
                     ev('hl.dispatch(hl.dsp.focus({workspace="name:eq"}))')
                     ev('test_bindings["SUPER + L"]()')
@@ -260,13 +260,14 @@ require("default.hypr.toggles")
                 ev('require("default.hypr.workspace-layouts")')
                 ev('hl.dispatch(hl.dsp.focus({workspace="2"}))')
                 ev('assert(hl.get_active_workspace().tiled_layout == "dwindle")')
+                if has_modes:
+                    check_stock_modes(modes, ctl)
+                    print('PASS: without the plugin, saved state gives stock dwindle and Omarchy cycles its own modes', flush=True)
                 stamp.write_text(commit)
                 if has_modes:
-                    check_stock_modes(modes, ev)
-                    print('PASS: without the plugin, Omarchy cycles its stock layouts', flush=True)
                     check_late_load(modes, ctl, ev, stamp.with_name('libhy3-cosmic.so'), stamp,
                                     home / '.config/hypr/equal-tiling.lua')
-                    print('PASS: a library loaded after the config gives saved modes equal tiling', flush=True)
+                    print('PASS: a library loaded after the config restores equal tiling and the cycle', flush=True)
                 assert ctl('reload') == 'ok'
                 time.sleep(.5)
                 assert not ctl('configerrors'), ctl('configerrors')
